@@ -1,0 +1,177 @@
+---
+title: "Pictograms for PK parameters"
+author: "Jitao David Zhang"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  html_document:
+    df_print: paged
+    theme: spacelab
+    mathjax: default
+    code_folding: hide
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 3
+editor_options: 
+  chunk_output_type: inline
+params:
+  echo: yes
+  relative: FALSE
+---
+
+```{r setup, include=FALSE, message=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      fig.height=3, fig.width=3)
+library(ribiosUtils)
+library(ribiosIO)
+library(ribiosPlot)
+library(openxlsx)
+library(tidyverse)
+library(ggplot2)
+library(grid)
+library(cowplot)
+theme_set(theme_bw(base_size=14))
+theme_update(panel.grid=element_blank(),
+             legend.text = element_text(size=13),
+             legend.margin = margin(),
+             legend.text.align = 0, 
+             legend.spacing = unit(0, "inch"),
+             legend.title = element_blank(),
+             panel.border = element_blank(),
+             axis.text = element_blank(),
+             axis.line = element_line(linewidth=0.5,
+                                      arrow=grid::arrow(length=unit(0.1, "inches"),
+                                                        type="closed")))
+```
+
+# Background
+
+# Executive summary
+
+# Analysis
+
+## Data read in
+
+```{r pkPlotData}
+ts <- seq(0, 10, 0.1)
+c0 <- 0.5
+ys <- exp(-ts) * c0
+ka <- 0.5
+k0 <- 1
+is.thalf <- which.min(abs(ys-c0/2))
+thalf <- ts[is.thalf]
+chalf <- ys[is.thalf]
+## see https://accio.github.io/AMIDD/assets/2023/11/AMIDD-2023-11-PKPD-modelling.pdf
+po <- ka * (exp(-ka * ts) - exp(-k0 * ts))/(k0 - ka)
+tmax <- 1/(ka - k0) * log(ka/k0)
+cmax <- po[which.min(abs(tmax - ts))]
+halfdata <- data.frame(x1=c(thalf, 0),
+                       x2=c(thalf, thalf),
+                       y1=c(0, chalf),
+                       y2=c(chalf, chalf))
+cp <- data.frame(Time=c(ts, ts),
+                 Value=c(ys, po), 
+                 Type=rep(c("IV", "PO"), each=length(ts)))
+ivCol <- "#8c510a"
+poCol <- "#01665e"
+poCurve <- data.frame(Time=c(0, ts, max(ts)+0.01, 0), PO=c(0, po, 0, 0), Type="AUC[PO]")
+ivCurve <- data.frame(Time=c(0, ts, 0), IV=c(0, ys, 0), Type="AUC[IV]")
+poMaxData <- data.frame(x1=c(tmax, 0),
+                        x2=c(tmax, tmax),
+                        y1=c(0, cmax),
+                        y2=c(cmax, cmax))
+parse.labels <- function(x) parse(text = x)
+```
+
+```{r ivPlot}
+ivPlot <- ggplot(cp %>% filter(Type=="IV"), 
+       aes(x=Time, y=Value)) +
+  geom_line(aes(x=Time, y=Value, col=Type), linewidth=1.15) +
+  geom_line(aes(x=Time, y=Value, col=Type), linewidth=1.15) +
+  geom_polygon(data=ivCurve, aes(x=Time, y=IV, fill=Type), alpha=0.2) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  xlab("Time") +
+  ylab("Plasma concentration") +
+  geom_segment(data=halfdata,
+               aes(x = x1, y = y1, xend = x2, yend = y2),
+               linetype=2) +
+  annotate("text", x=thalf, y=chalf, label="(list(t[1/2],frac(1, 2) * C[0]))", parse=TRUE,
+           hjust=0, vjust=0, size=5) +
+  scale_color_manual(values = c("IV" = ivCol)) +
+  scale_fill_manual(values=c("AUC[IV]"=ivCol), labels=parse.labels) +
+  theme(legend.position=c(0.8, 0.9),
+        legend.spacing.y = unit(0, "inch")) +
+  guides(colour="none")
+print(ivPlot)
+```
+
+```{r poPlot}
+poPlot <- ggplot(cp %>% filter(Type=="PO"),, aes(x=Time, y=Value)) +
+  geom_line(aes(x=Time, y=Value, col=Type), linewidth=1.15) +
+  geom_polygon(data=poCurve, aes(x=Time, y=PO, fill=Type),alpha=0.2) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(limits=c(0, max(ys)), expand=c(0,0)) +
+  xlab("Time") +
+  ylab("Plasma concentration") +
+  geom_segment(data=poMaxData,
+               aes(x = x1, y = y1, xend = x2, yend = y2),
+               linetype=2) +
+  annotate("text", x=tmax, y=cmax, label="(list(t[max], C[max]))", parse=TRUE,
+           hjust=0, vjust=0, size=5) +
+  scale_color_manual(values = c("IV" = ivCol, "PO" = poCol)) +
+  scale_fill_manual(values=c("AUC[IV]"=ivCol,
+                             "AUC[PO]"=poCol), labels=parse.labels) +
+  theme(legend.position=c(0.8, 0.9),
+        legend.spacing.y = unit(0, "inch")) +
+  guides(colour="none")
+plot(poPlot)
+```
+
+```{r pkPlot, fig.height=3, fig.width=3}
+fPlot <- ggplot(cp, aes(x=Time, y=Value)) +
+  geom_line(aes(x=Time, y=Value, col=Type), linewidth=1.15) +
+  geom_polygon(data=ivCurve, aes(x=Time, y=IV, fill=Type),alpha=0.2) +
+  geom_polygon(data=poCurve, aes(x=Time, y=PO, fill=Type),alpha=0.2) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand=c(0, 0)) +
+  xlab("Time") +
+  ylab("Plasma concentration") +
+  annotate("text", x=max(ts), y=max(ys)*0.77, 
+           label=expression(paste("F% = ", frac(AUC[PO], AUC[IV]))), 
+           hjust=1, vjust=1, size=5) +
+  scale_color_manual(values = c("IV" = ivCol, "PO" = poCol)) +
+  scale_fill_manual(values=c("AUC[IV]"=ivCol,
+                             "AUC[PO]"=poCol), labels=parse.labels) +
+  theme(legend.position=c(0.8, 0.9),
+        legend.spacing.y = unit(0, "inch")) + 
+  guides(colour="none")
+```
+
+```{r onePlot, fig.path="figs/", dev=c("png", "pdf"), fig.width=9, fig.height=3}
+ggdraw() +
+  draw_plot(ivPlot, x=0, y=0, width=1/3, height=1) +
+  draw_plot(poPlot, x=1/3, y=0, width=1/3, height=1) +
+  draw_plot(fPlot, x=2/3, y=0, width=1/3, height=1)
+```
+
+
+# Acknowledgment
+
+# Session information
+
+```{r bedaInfo}
+bedaInfo()
+```
+
+```{r sessionInfo}
+sessionInfo()
+```
+
+# Appendix
