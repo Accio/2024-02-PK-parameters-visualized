@@ -199,7 +199,7 @@ clp_vss <- ggplot(data = circle_points_before,
   geom_point(data = points_before, aes(x = x, y = y), color = "darkgray") +
     geom_point(data = points_after, aes(x = x, y = y), color = "darkgray") +
   annotate("text", x=1.5, y=0.1, label="italic(t)", parse=TRUE,
-           vjust=0, hjust=1, size=8) +
+           vjust=0, hjust=1, size=6) +
   annotate("segment", x = 0, y = -1, xend = 0.5, yend = -1.15, 
          linewidth=1, linejoin = "mitre", color="#004495") +
   annotate("text", x=0.5, y=-1.2, label="V[ss]", parse=TRUE,
@@ -212,7 +212,8 @@ clp_vss <- ggplot(data = circle_points_before,
          linewidth=1, linejoin = "mitre",
          arrow = arrow(type = "closed", length = unit(0.1, "npc"))) +
   coord_fixed(ratio = 1) +
-  xlim(-1, 4) + ylim(-1.5, 1.5) +
+  scale_x_continuous(limits=c(-1.2, 4.6), expand=c(0, 0)) +
+  scale_y_continuous(limits=c(-1.8, 1.5), expand=c(0, 0)) +
   theme_void()
 print(clp_vss)
 ```
