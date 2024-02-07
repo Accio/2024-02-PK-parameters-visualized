@@ -94,6 +94,9 @@ tInd <- c(c(seq(0, 10, 2),
 tPoints <- ts[tInd]
 ivPoints <- ys[tInd] * rnorm(length(tInd), mean=1, sd=0.05)
 poPoints <- po[tInd] * rnorm(length(tInd), mean=1, sd=0.02)
+pointData <- data.frame(Time=c(tPoints, tPoints),
+                 Value=c(ivPoints, poPoints), 
+                 Type=rep(c("IV", "PO"), each=length(tPoints)))
 ```
 
 ```{r ivPlot}
@@ -250,6 +253,10 @@ ggdraw() +
   draw_plot(fPlot, x=3/4, y=0, width=1/4, height=1)
 ```
 
+```{r}
+write_tsv(cp, "data/PK-parameters.tsv")
+write_tsv(pointData, "data/PK-parameters-points.tsv")
+```
 
 # Acknowledgment
 
