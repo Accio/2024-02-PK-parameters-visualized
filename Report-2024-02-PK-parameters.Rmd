@@ -64,6 +64,7 @@ c0 <- 0.5
 ys <- exp(-ts) * c0
 ka <- 0.5
 k0 <- 1
+npoint <- 10
 is.thalf <- which.min(abs(ys-c0/2))
 thalf <- ts[is.thalf]
 chalf <- ys[is.thalf]
@@ -87,6 +88,12 @@ poMaxData <- data.frame(x1=c(tmax, 0),
                         y1=c(0, cmax),
                         y2=c(cmax, cmax))
 parse.labels <- function(x) parse(text = x)
+tInd <- c(c(seq(0, 10, 2),
+          seq(20, 100, 15))+1,
+          which.min(abs(tmax - ts)))
+tPoints <- ts[tInd]
+ivPoints <- ys[tInd] * rnorm(length(tInd), mean=1, sd=0.05)
+poPoints <- po[tInd] * rnorm(length(tInd), mean=1, sd=0.02)
 ```
 
 ```{r ivPlot}
@@ -96,7 +103,7 @@ ivPlot <- ggplot(cp %>% filter(Type=="IV"),
   geom_line(aes(x=Time, y=Value, col=Type), linewidth=1.15) +
   geom_polygon(data=ivCurve, aes(x=Time, y=IV, fill=Type), alpha=0.2) +
   scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0), limits=c(0, 0.55)) +
   xlab("Time") +
   ylab("Plasma concentration") +
   geom_segment(data=halfdata,
@@ -106,6 +113,8 @@ ivPlot <- ggplot(cp %>% filter(Type=="IV"),
            hjust=0, vjust=0, size=5) +
   scale_color_manual(values = c("IV" = ivCol)) +
   scale_fill_manual(values=c("AUC[IV]"=ivCol), labels=parse.labels) +
+  geom_point(data=data.frame(x=tPoints, y=ivPoints), 
+             aes(x=x, y=y), size=2) +
   theme(legend.position=c(0.8, 0.9),
         legend.spacing.y = unit(0, "inch")) +
   guides(colour="none")
@@ -113,7 +122,7 @@ print(ivPlot)
 ```
 
 ```{r poPlot}
-poPlot <- ggplot(cp %>% filter(Type=="PO"),, aes(x=Time, y=Value)) +
+poPlot <- ggplot(cp %>% filter(Type=="PO"), aes(x=Time, y=Value)) +
   geom_line(aes(x=Time, y=Value, col=Type), linewidth=1.15) +
   geom_polygon(data=poCurve, aes(x=Time, y=PO, fill=Type),alpha=0.2) +
   scale_x_continuous(expand = c(0, 0)) +
@@ -128,6 +137,8 @@ poPlot <- ggplot(cp %>% filter(Type=="PO"),, aes(x=Time, y=Value)) +
   scale_color_manual(values = c("IV" = ivCol, "PO" = poCol)) +
   scale_fill_manual(values=c("AUC[IV]"=ivCol,
                              "AUC[PO]"=poCol), labels=parse.labels) +
+  geom_point(data=data.frame(x=tPoints, y=poPoints), 
+             aes(x=x, y=y), inherit.aes = FALSE, size=2) +
   theme(legend.position=c(0.8, 0.9),
         legend.spacing.y = unit(0, "inch")) +
   guides(colour="none")
@@ -146,16 +157,20 @@ fPlot <- ggplot(cp, aes(x=Time, y=Value)) +
   annotate("text", x=max(ts), y=max(ys)*0.77, 
            label=expression(paste("F% = ", frac(AUC[PO], AUC[IV]))), 
            hjust=1, vjust=1, size=5) +
+   geom_point(data=data.frame(x=tPoints, y=ivPoints), 
+             aes(x=x, y=y), size=2) +
+    geom_point(data=data.frame(x=tPoints, y=poPoints), 
+             aes(x=x, y=y), inherit.aes = FALSE, size=2) +
   scale_color_manual(values = c("IV" = ivCol, "PO" = poCol)) +
   scale_fill_manual(values=c("AUC[IV]"=ivCol,
                              "AUC[PO]"=poCol), labels=parse.labels) +
   theme(legend.position=c(0.8, 0.9),
         legend.spacing.y = unit(0, "inch")) + 
   guides(colour="none")
+print(fPlot)
 ```
 
 ```{r clp}
-
 ## modified chat GPT code below
 # Function to generate random points within a circle
 generate_random_points <- function(n, 
@@ -183,12 +198,13 @@ generate_circles <- function(n=100, x_center=0, y_center=0) {
 set.seed(1887)
 
 points_before <- generate_random_points(200)
-points_after <- generate_random_points(150, x_center=3, angle_end=1.5*pi)
+points_after <- generate_random_points(150, x_center=2.5, angle_end=1.5*pi)
+circle_points_vss <- generate_circles(x_center=1.25, y_center=2.2)
 circle_points_before <- generate_circles()
-circle_points_after <- generate_circles(x_center=3)
+circle_points_after <- generate_circles(x_center=2.5)
 
 # Plot the circle and the points
-clp_vss <- ggplot(data = circle_points_before, 
+clpVssPlot <- ggplot(data = circle_points_before, 
                aes(x = x, y = y)) +
   geom_polygon(data = circle_points_before, 
                aes(x = x, y = y), fill = NA, 
@@ -196,36 +212,39 @@ clp_vss <- ggplot(data = circle_points_before,
   geom_polygon(data = circle_points_after, 
                aes(x = x, y = y), fill = NA, 
                color = "black", linewidth=1.25) +
+  geom_polygon(data = circle_points_vss, 
+               aes(x = x, y = y), fill = NA, 
+               color = "black", linewidth=1.25) +
   geom_point(data = points_before, aes(x = x, y = y), color = "darkgray") +
     geom_point(data = points_after, aes(x = x, y = y), color = "darkgray") +
-  annotate("text", x=1.5, y=0.1, label="italic(t)", parse=TRUE,
+  annotate("text", x=1.25, y=2.2, label="V[ss]", parse=TRUE,
+           vjust=0.5, hjust=0.5, size=6, col="#004495") +
+  annotate("text", x=0, y=-1.5, label="italic(t)", parse=TRUE,
            vjust=0, hjust=1, size=6) +
-  annotate("segment", x = 0, y = -1, xend = 0.5, yend = -1.15, 
-         linewidth=1, linejoin = "mitre", color="#004495") +
-  annotate("text", x=0.5, y=-1.2, label="V[ss]", parse=TRUE,
-           vjust=1, hjust=0, size=6) +
-  annotate("segment", x = 3.25, y = 0.5, xend = 3.7, yend = 1.15, 
-         linewidth=1, linejoin = "mitre", linetype=1, color="#004495") +
-  annotate("text", x=3.5, y=1.5, label="CL[p]", parse=TRUE,
-           vjust=1, hjust=0, size=6) +
-  annotate("segment", x = 1, y = 0, xend = 2, yend = 0, 
+  annotate("text", x=2.5, y=-1.5, label=expression(italic(t) + Delta * italic(t)),
+           vjust=0, hjust=0.5, size=6) +
+  annotate("text", x=2.6, y=0.6, label="CL[p]", parse=TRUE,
+           vjust=1, hjust=0, size=6, col="#004495") +
+  annotate("text", x=2.75, y=2.1, label="CL[p]", parse=TRUE,
+           vjust=1, hjust=0.5, size=6, col="#004495") +
+  annotate("segment", x = 2.25, y = 2.2, xend = 3.25, yend = 2.2, 
          linewidth=1, linejoin = "mitre",
-         arrow = arrow(type = "closed", length = unit(0.1, "npc"))) +
+         arrow = arrow(type = "closed", length = unit(0.05, "npc"))) +
   coord_fixed(ratio = 1) +
-  scale_x_continuous(limits=c(-1.2, 4.6), expand=c(0, 0)) +
-  scale_y_continuous(limits=c(-1.8, 1.5), expand=c(0, 0)) +
+  scale_x_continuous(limits=c(-1.2, 3.6), expand=c(0, 0)) +
+  scale_y_continuous(limits=c(-1.8, 3.5), expand=c(0, 0)) +
   theme_void()
-print(clp_vss)
+print(clpVssPlot)
 ```
 
 ```{r onePlot, fig.path="figs/", dev=c("png", "pdf"), fig.width=12, fig.height=3}
-plot_grid(clp_vss, ivPlot, poPlot, fPlot, 
+plot_grid(clpVssPlot, ivPlot, poPlot, fPlot, 
           align="v", nrow=1, labels=c("B", "C", "D", "E"))
 ```
 
 ```{r onePlotAlt, eval=FALSE}
 ggdraw() +
-  draw_plot(clp_vss, x=0, y=0, width=1/4, height=1) +
+  draw_plot(clpVssPlot, x=0, y=0, width=1/4, height=1) +
   draw_plot(ivPlot, x=1/4, y=0, width=1/4, height=1) +
   draw_plot(poPlot, x=2/4, y=0, width=1/4, height=1) +
   draw_plot(fPlot, x=3/4, y=0, width=1/4, height=1)
